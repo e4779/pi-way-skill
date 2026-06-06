@@ -4,7 +4,7 @@
   "description": "The pi philosophy — less is more, Unix-way. Sub-agents via Makefile + tmux, file-based planning, cheap model recommendations.",
   "keywords": ["pi-package", "pi-way", "skills", "sub-agents", "workflow"],
   "author": "e4779",
-  "license": "MIT",
+  "license": "ISC",
   "pi": {
     "skills": ["./skills"]
   }
