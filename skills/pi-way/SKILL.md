@@ -7,6 +7,10 @@ description: The pi philosophy — less is more, Unix-way, no sub-agents, no bui
 
 Pi is a minimal, opinionated coding agent harness built by Mario Zechner. Its philosophy: **less is more**, **context engineering is paramount**, and **bash is the universal interface**.
 
+> See: [pi's philosophy](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/README.md#philosophy) and Mario's [blog post on building pi](https://mariozechner.at/posts/2025-11-30-pi-coding-agent/).
+>
+> Mario on MCP: *"If you absolutely must use MCP servers, look into Peter Steinberger's mcporter tool that wraps MCP servers as CLI tools."* This skill uses mcporter for Chrome DevTools and other MCP servers.
+
 This skill teaches you — the model — how to work *with* pi's constraints rather than against them.
 
 ---
@@ -82,6 +86,27 @@ pi -p "Investigate the bug" --tools read,bash
 
 ### Real-world sub-agent recipes
 
+Mario's own use case: code review via a slash command that spawns a sub-agent. From the blog post:
+
+```markdown
+# ~/.pi/agent/prompts/review.md
+---
+description: Run a code review sub-agent
+---
+Spawn yourself as a sub-agent via bash to do a code review: $@
+Use `pi --print` with appropriate arguments.
+Pass a prompt to the sub-agent asking it to review the code for:
+- Bugs and logic errors
+- Security issues
+- Error handling gaps
+Do not read the code yourself. Let the sub-agent do that.
+Report the sub-agent's findings.
+```
+
+Then use via `/review src/auth.ts` — the main agent spawns a sub-agent, gets the review, reports findings. Full observability of the output.
+
+More recipes:
+
 ```bash
 # SECURITY AUDITOR: custom persona, read-only, no context files
 pi -p "Find vulnerabilities in $(ls src/**/*.ts)" \
@@ -130,7 +155,7 @@ The user can:
 - **Security audit** — Custom system prompt, strict toolset
 - **Context gathering** — Do it in a *separate session first*, create an artifact (file), then use that artifact in the main session
 - **Test generation** — Write tests for a module with a test-engineer persona
-- **Parallel work** — Avoid. Spawning multiple agents to implement features in parallel is an anti-pattern that leads to garbage code. Do one thing at a time.
+- **Parallel work** — **Anti-pattern.** Mario: *"Spawning multiple sub-agents to implement various features in parallel is an anti-pattern in my book and doesn't work, unless you don't care if your codebase devolves into a pile of garbage."* Do one thing at a time.
 
 ### Practical sub-agent patterns (battle-tested)
 
@@ -359,7 +384,13 @@ git worktree add ../approach-b main
 - Clean teardown: `git worktree remove` — gone, no lingering processes
 - Sub-agents can't step on each other's toes — separate working directories
 
-**Important**: Spawning sub-agents mid-session for context gathering is a sign you didn't plan ahead. Gather context first in its own session, produce an artifact, then feed that to a fresh session. The artifact persists across sessions and features.
+**Important**: Spawning sub-agents mid-session for context gathering is a sign you didn't plan ahead. Mario: *"If you need to gather context, do that first in its own session. Create an artifact that you can later use in a fresh session to give your agent all the context it needs without polluting its context window with tool outputs. That artifact can be useful for the next feature too."*
+
+The artifact pattern:
+1. Session A — explore, gather context, produce ARTIFACT.md
+2. Session B — read ARTIFACT.md, do the actual work
+
+The artifact persists across sessions and features.
 
 ### Makefile — the missing orchestrator
 
