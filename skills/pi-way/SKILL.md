@@ -7,9 +7,7 @@ description: The pi philosophy — less is more, Unix-way, no sub-agents, no bui
 
 Pi is a minimal, opinionated coding agent harness built by Mario Zechner. Its philosophy: **less is more**, **context engineering is paramount**, and **bash is the universal interface**.
 
-> See: [pi's philosophy](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/README.md#philosophy) and Mario's [blog post on building pi](https://mariozechner.at/posts/2025-11-30-pi-coding-agent/).
->
-> Mario on MCP: *"If you absolutely must use MCP servers, look into Peter Steinberger's mcporter tool that wraps MCP servers as CLI tools."* This skill uses mcporter for Chrome DevTools and other MCP servers.
+This skill implements patterns for working _with_ pi's constraints. See README.md for context, sources, and philosophy references.
 
 This skill teaches you — the model — how to work *with* pi's constraints rather than against them.
 
