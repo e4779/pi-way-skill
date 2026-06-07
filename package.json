@@ -1,7 +1,7 @@
 {
   "name": "pi-way-skill",
   "version": "1.0.0",
-  "description": "The pi philosophy — less is more, Unix-way. Sub-agents via Makefile + tmux, file-based planning, cheap model recommendations.",
+  "description": "The pi philosophy — less is more, Unix-way. Sub-agents via @mjakl/pi-subagent (graceful fallback to Makefile + tmux), file-based planning, cheap model recommendations.",
   "keywords": ["pi-package", "pi-way", "skills", "sub-agents", "workflow"],
   "author": "e4779",
   "license": "ISC",
