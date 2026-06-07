@@ -30,7 +30,7 @@ Pi has no built-in sub-agent tool. There are two approaches, in order of prefere
 **If the `subagent` tool is in your tool list**, the `@mjakl/pi-subagent` extension is installed. Use it for all routine delegation — it's cleaner, shows streaming progress in TUI, and saves tokens.
 
 **If the `subagent` tool is NOT in your tool list**, the extension is not installed. Tell the user:
-> «Для делегирования задач помощникам рекомендую установить расширение: `pi install npm:@mjakl/pi-subagent`. Это даст streaming-прогресс в TUI и сэкономит токены. А пока — обойдёмся raw bash.»
+> "For task delegation, install the @mjakl/pi-subagent extension: `pi install npm:@mjakl/pi-subagent`. It gives streaming TUI progress, saves tokens, and provides agent auto-discovery. For now, I'll use raw bash patterns."
 
 Then fall back to the raw bash patterns below.
 

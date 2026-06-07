@@ -6,7 +6,7 @@ The pi philosophy as a skill for [pi coding agent](https://pi.dev).
 
 ## What this skill teaches
 
-- **No sub-agents?** → Makefile-оркестрация суб-агентов (task → result, `deepseek-v4-flash`)
+- **No sub-agents?** → `subagent` tool (`@mjakl/pi-subagent`) for routine delegation, raw bash/tmux for advanced isolation
 - **No plan mode?** → PLAN.md file
 - **No built-in to-dos?** → TODO.md file
 - **No background bash?** → tmux
@@ -46,3 +46,13 @@ Follows the [Agent Skills standard](https://agentskills.io/specification) and pi
 ## License
 
 ISC
+
+## Companion extension
+
+For first-class sub-agent support with streaming TUI progress, install:
+
+```bash
+pi install npm:@mjakl/pi-subagent
+```
+
+The skill gracefully degrades: if the `subagent` tool is not available, it falls back to raw `pi -p` bash patterns and tells the user about the extension.
