@@ -7,8 +7,6 @@ description: The pi philosophy — less is more, Unix-way, no sub-agents, no bui
 
 Pi is a minimal, opinionated coding agent harness built by Mario Zechner. Its philosophy: **less is more**, **context engineering is paramount**, and **bash is the universal interface**.
 
-This skill implements patterns for working _with_ pi's constraints. See README.md for context, sources, and philosophy references.
-
 This skill teaches you — the model — how to work *with* pi's constraints rather than against them.
 
 ---
@@ -23,11 +21,46 @@ This skill teaches you — the model — how to work *with* pi's constraints rat
 
 ---
 
-## No Sub-Agents? No Problem.
+## Sub-Agents
 
-Pi has no built-in sub-agent tool. Here's how to achieve the same thing, better:
+Pi has no built-in sub-agent tool. There are two approaches, in order of preference:
+
+### ⚠️ First: check what's available
+
+**If the `subagent` tool is in your tool list**, the `@mjakl/pi-subagent` extension is installed. Use it for all routine delegation — it's cleaner, shows streaming progress in TUI, and saves tokens.
+
+**If the `subagent` tool is NOT in your tool list**, the extension is not installed. Tell the user:
+> «Для делегирования задач помощникам рекомендую установить расширение: `pi install npm:@mjakl/pi-subagent`. Это даст streaming-прогресс в TUI и сэкономит токены. А пока — обойдёмся raw bash.»
+
+Then fall back to the raw bash patterns below.
+
+### The subagent tool (recommended for routine delegation)
+
+The `@mjakl/pi-subagent` extension provides a first-class `subagent` tool:
+
+```json
+{ "agent": "explorer", "task": "Find all usages of the Auth class" }
+```
+
+Parallel tasks:
+```json
+{ "tasks": [
+  { "agent": "reviewer", "task": "Review for bugs" },
+  { "agent": "reviewer", "task": "Review for style" }
+] }
+```
+
+Context modes:
+- `"spawn"` (default) — child receives only the task. Best for isolated work.
+- `"fork"` — child receives parent session context + task. Best for follow-up work.
+
+Agents are Markdown files in `~/.pi/agent/agents/` or `.pi/agents/` with YAML frontmatter. The model can create agents on the fly with the `write` tool.
+
+See the extension README for full details.
 
 ### Spawn another pi instance via bash
+
+> **Note:** For routine delegation, prefer the `subagent` tool above. The raw bash approach below is for advanced isolation (git worktree), interactive steering (tmux send-keys), and scenarios where the extension is not available.
 
 ```bash
 # One-shot sub-agent (print mode)
@@ -46,201 +79,124 @@ pi -p "Review this" @src/auth.ts @README.md
 cat build.log | pi -p "Find all errors in this build log"
 ```
 
-### Custom system prompt for the sub-agent
-
-The sub-agent is a full pi instance. You can completely change its persona and capabilities:
-
-```bash
-# Replace the default coding agent system prompt entirely
-pi -p "Analyze this codebase" \
-  --system-prompt "You are a senior security auditor. Focus on OWASP Top 10 vulnerabilities, injection attacks, and auth bypasses. Be thorough and skeptical."
-
-# Append instructions to the default system prompt (repeatable)
-pi -p "Review PR" \
-  --append-system-prompt "Focus on performance and memory leaks" \
-  --append-system-prompt "Also check for i18n issues"
-
-# Strip everything — pure model, no AGENTS.md, no skills, no extensions
-pi -p "Summarize this text" \
-  --system-prompt "You are a helpful assistant. Be concise." \
-  -nc -ns -ne
-```
-
-### Restrict the sub-agent's tools
-
-```bash
-# Read-only sub-agent (analyze without modifying)
-pi -p "Audit the authentication flow" --tools read,grep,find,ls
-
-# Pure chat — no tools at all
-pi -p "Brainstorm architecture ideas" --no-tools
-
-# Only bash — for script automation
-pi -p "Run the test suite and report" --tools bash
-
-# Custom toolset — read + bash, no write/edit
-pi -p "Investigate the bug" --tools read,bash
-```
-
 ### Real-world sub-agent recipes
 
-Mario's own use case: code review via a slash command that spawns a sub-agent. From the blog post:
+Instead of long bash commands, define agents as Markdown files and call them with the `subagent` tool:
 
+Create `~/.pi/agent/agents/security-auditor.md`:
 ```markdown
-# ~/.pi/agent/prompts/review.md
 ---
-description: Run a code review sub-agent
+name: security-auditor
+description: Finds security vulnerabilities: SQL injection, XSS, CSRF, auth bypass
+model: anthropic/claude-sonnet-4:high
+tools: read, grep, find
 ---
-Spawn yourself as a sub-agent via bash to do a code review: $@
-Use `pi --print` with appropriate arguments.
-Pass a prompt to the sub-agent asking it to review the code for:
-- Bugs and logic errors
-- Security issues
-- Error handling gaps
-Do not read the code yourself. Let the sub-agent do that.
-Report the sub-agent's findings.
+You are a senior security auditor. Check for: SQL injection, XSS, CSRF, auth bypass, path traversal, hardcoded secrets. Report each finding with file:line and severity.
 ```
 
-Then use via `/review src/auth.ts` — the main agent spawns a sub-agent, gets the review, reports findings. Full observability of the output.
+Then call: `{ "agent": "security-auditor", "task": "Audit src/auth.ts" }`
 
-More recipes:
-
-```bash
-# SECURITY AUDITOR: custom persona, read-only, no context files
-pi -p "Find vulnerabilities in $(ls src/**/*.ts)" \
-  --system-prompt "You are a senior security auditor. Check for: SQL injection, XSS, CSRF, auth bypass, path traversal, hardcoded secrets. Report each finding with file:line and severity." \
-  --tools read,grep,find \
-  -nc -ns
-
-# CODE REVIEWER: reviews a git diff
-pi -p "Review this diff for bugs, style issues, and missing tests" \
-  --system-prompt "You are a thorough code reviewer. Look for: logic errors, edge cases, error handling gaps, test coverage, and code style. Be constructive." \
-  --tools read,grep \
-  @<(git diff main...HEAD)
-
-# TEST GENERATOR: writes tests for a module
-pi -p "Write comprehensive tests for src/auth.ts" \
-  --system-prompt "You are a test engineer. Write tests using vitest. Cover: happy paths, edge cases, error handling, and auth bypass attempts. Mock external dependencies." \
-  --tools read,write,edit,bash \
-  -nc
-
-# PLANNER: explores codebase and produces PLAN.md
-pi -p "Explore this project and create a PLAN.md for adding OAuth support" \
-  --system-prompt "You are a technical architect. First explore the codebase, then produce a detailed implementation plan in PLAN.md with steps, files to modify, and potential pitfalls." \
-  --tools read,grep,find,ls,write,bash \
-  -nc -ns
+Create `~/.pi/agent/agents/code-reviewer.md`:
+```markdown
+---
+name: code-reviewer
+description: Reviews code for bugs, style issues, and missing tests
+model: anthropic/claude-sonnet-4:high
+tools: read, grep
+---
+You are a thorough code reviewer. Look for: logic errors, edge cases, error handling gaps, test coverage, and code style. Be constructive.
 ```
+
+Then call: `{ "agent": "code-reviewer", "task": "Review the diff in $(git diff main...HEAD)" }`
+
+Create `~/.pi/agent/agents/test-engineer.md`:
+```markdown
+---
+name: test-engineer
+description: Writes comprehensive tests with vitest
+model: deepseek/deepseek-v4-flash
+tools: read, write, edit, bash
+---
+You are a test engineer. Write tests using vitest. Cover: happy paths, edge cases, error handling, and auth bypass attempts. Mock external dependencies.
+```
+
+Then call: `{ "agent": "test-engineer", "task": "Write comprehensive tests for src/auth.ts" }`
+
+Create `~/.pi/agent/agents/architect.md`:
+```markdown
+---
+name: architect
+description: Explores codebase and produces implementation plans
+model: deepseek/deepseek-v4-pro
+tools: read, grep, find, ls, write, bash
+---
+You are a technical architect. First explore the codebase, then produce a detailed implementation plan in PLAN.md with steps, files to modify, and potential pitfalls.
+```
+
+Then call: `{ "agent": "architect", "task": "Explore this project and create a PLAN.md for adding OAuth support" }`
 
 ### Spawn pi inside tmux for full observability
 
-```bash
-# Start a sub-agent in a tmux window (user can attach and watch)
-tmux new-window -n "code-review" "pi -p 'Review src/ for bugs' --system-prompt 'You are a code reviewer...'"
+Use the **keeper session pattern** — one persistent tmux session, each sub-agent in its own window.
 
-# Detached tmux session — runs in background, user can attach later
-tmux new-session -d -s security-audit \
-  "pi -p 'Audit the codebase' --system-prompt 'You are a security auditor...' --tools read,grep,find -nc"
+```bash
+# Step 1 (once): Create a keeper session that stays alive
+tmux new-session -d -s keeper "while true; do sleep 60; done"
+
+# Step 2: Launch sub-agents as windows inside keeper
+# CRITICAL: always add '; sleep N' after pi to keep the window alive for capture
+tmux new-window -t keeper -n code-review \
+  "pi -p 'Review src/' --system-prompt 'You are a code reviewer...' 2>&1; sleep 60"
+
+tmux new-window -t keeper -n security-audit \
+  "pi -p 'Audit the codebase' --system-prompt 'You are a security auditor...' --tools read,grep,find -nc 2>&1; sleep 60"
 ```
 
 The user can:
-- `tmux attach -t security-audit` — watch in real-time
-- `tmux capture-pane -t security-audit -p` — read the output
-- `tmux kill-session -t security-audit` — stop it
+- `tmux attach -t keeper` — watch all sub-agents in real-time
+- `tmux capture-pane -t keeper:code-review -p` — read output from main session
+- `tmux send-keys -t keeper:code-review "steering message" Enter` — steer mid-flight
+- `tmux kill-window -t keeper:code-review` — stop a sub-agent
+
+See "Real-time monitoring via tmux" below for full monitoring patterns.
 
 ### When to use sub-agents
 
-- **Code review** — Spawn pi with a reviewer persona, read-only tools
-- **Security audit** — Custom system prompt, strict toolset
-- **Context gathering** — Do it in a *separate session first*, create an artifact (file), then use that artifact in the main session
-- **Test generation** — Write tests for a module with a test-engineer persona
-- **Parallel work** — **Anti-pattern.** Mario: *"Spawning multiple sub-agents to implement various features in parallel is an anti-pattern in my book and doesn't work, unless you don't care if your codebase devolves into a pile of garbage."* Do one thing at a time.
+> **Prefer the `subagent` tool** for most delegation. The raw bash/tmux patterns below are for advanced isolation and interactive steering.
+
+- **Code review** — Call the `code-reviewer` agent with the `subagent` tool
+- **Security audit** — Call the `security-auditor` agent, read-only tools via agent frontmatter
+- **Context gathering** — Do it in a *separate session first*, create an artifact (file), then use that artifact in the main session. Or use the `subagent` tool with `"mode": "spawn"`.
+- **Test generation** — Call the `test-engineer` agent
+- **Parallel work** — Avoid. Spawning multiple agents to implement features in parallel is an anti-pattern that leads to garbage code. Do one thing at a time.
 
 ### Practical sub-agent patterns (battle-tested)
 
-These patterns come from real-world use of pi sub-agents for project work — launching, monitoring, and cleaning up.
+These patterns are for advanced scenarios where raw bash/tmux is needed. For routine delegation, use the `subagent` tool instead.
 
-#### Background execution with log capture
+#### Real-time monitoring via tmux (interactive steering)
 
-Pi in print mode (`-p`) outputs to stdout. When backgrounding, use `tee` — direct file redirection fails because pi detects non-TTY stdout. **However, even `tee` output is often buffered/empty.** The log is an auxiliary tool — git monitoring (below) is the primary method.
-
-```bash
-# CORRECT syntax, but log may be empty — use git monitoring instead
-cd ~/project && pi -p "Implement feature X" \
-  --model deepseek/deepseek-v4-flash --no-session -nc -ns -ne \
-  2>&1 | tee /tmp/pi-task.log &
-
-# WRONG: log stays empty
-pi -p "Task" > /tmp/log 2>&1 &
-
-# When to check the log (if it has content):
-tail -f /tmp/pi-task.log 2>/dev/null || echo "log empty — use 'git status --short'"
-```
-
-#### Real-time monitoring via tmux (RECOMMENDED)
-
-Start the sub-agent in a detached tmux session — full terminal output with NO buffering. The main session can peek via `capture-pane`, and the user can attach to watch live:
+When you need to watch or steer a sub-agent interactively, use tmux. The `subagent` tool handles routine output capture; tmux is for live interaction.
 
 ```bash
-# Start sub-agent in detached tmux window
-tmux new-session -d -s sub-css "cd ~/project && pi --model deepseek/deepseek-v4-flash --no-session -nc -ns -ne -p 'Refactor CSS'"
+# Step 1 (once): Create a keeper session that stays alive
+tmux new-session -d -s keeper "while true; do sleep 60; done"
 
-# Monitor from main session — see the last 30 lines of output
-tmux capture-pane -t sub-css -p | tail -30
+# Step 2: Launch sub-agent in a new window
+tmux new-window -t keeper -n my-task \
+  "cd ~/project && pi -p 'Task' --no-session 2>&1; sleep 60"
 
-# Continuous watch (updates every 5s)
-watch -n 5 "tmux capture-pane -t sub-css -p | tail -20"
+# Monitor
+tmux capture-pane -t keeper:my-task -p | tail -30
 
-# Check if session is still running
-tmux has-session -t sub-css 2>/dev/null && echo "Running" || echo "Finished"
+# Steer mid-flight
+tmux send-keys -t keeper:my-task "Try a different approach" Enter
 
-# User can attach to watch live or interact
-tmux attach -t sub-css
-# (Ctrl+B D to detach, Ctrl+C to stop the agent)
+# Kill if needed
+tmux kill-window -t keeper:my-task
 ```
 
-**Why tmux beats file logging:**
-- Zero buffering — every line of output is immediately visible
-- User can attach/detach anytime for live control
-- Survives terminal disconnects (the session keeps running)
-- `capture-pane` lets the main agent read the sub-agent's output
-- No need to parse log files — it's just the terminal
-
-#### Git polling loop (file-based fallback)
-
-When tmux isn't available, use file-based git polling. **Log capture via `tee` is unreliable** — output buffers, TTY detection varies, the log is often empty. Git monitoring is the ground truth for file changes, even if you can't see the agent's output:
-
-```bash
-# Check every 30s
-git status --short        # what files changed?
-git diff --stat           # how many lines?
-git diff | head -50       # peek at the changes
-```
-
-#### Git polling loop (automated)
-
-```bash
-# Launch sub-agent
-cd ~/project && pi --model deepseek/deepseek-v4-flash --no-session -nc -ns -ne \
-  -p "Task description" 2>&1 | tee /tmp/pi-task.log &
-SUBPID=$!
-
-# Poll every 30s, auto-kill after 5 min of no changes
-last_change=$(date +%s)
-while kill -0 $SUBPID 2>/dev/null; do
-  sleep 30
-  if [ -n "$(git status --short)" ]; then
-    echo "[$(date +%H:%M)] Files changed:"
-    git diff --stat
-    last_change=$(date +%s)
-  fi
-  if [ $(($(date +%s) - last_change)) -gt 300 ]; then
-    echo "[$(date +%H:%M)] No changes for 5 min — killing"
-    kill $SUBPID 2>/dev/null
-    break
-  fi
-done
-git diff
-```
+The user can `tmux attach -t keeper` to watch live.
 
 #### Safety net: tests as gate
 
@@ -253,21 +209,6 @@ npx playwright test tests/e2e/visual.spec.ts  # visual regression
 ```
 
 If tests fail, fix the issues manually or re-spawn with corrected instructions. The sub-agent + test cycle is the TDD loop for agent-driven work.
-
-#### Kill old sub-agents before launching new ones
-
-A running sub-agent will keep overwriting files. Always clean up before spawning a new one:
-
-```bash
-# Kill all background pi processes matching a pattern
-pkill -f "pi.*translate\|pi.*backlinks" 2>/dev/null
-
-# Or kill by process tree
-ps aux | grep " pi " | grep -v grep | awk '{print $2}' | xargs kill 2>/dev/null
-
-# Verify they're gone
-ps aux | grep " pi " | grep -v grep
-```
 
 #### Review and fix before committing
 
@@ -283,49 +224,17 @@ Fix small issues yourself rather than re-spawning the sub-agent — it's faster 
 
 #### Use cheaper models for routine tasks
 
-For code generation, file creation, and straightforward editing tasks, use cheaper models:
+For code generation, file creation, and straightforward editing tasks, use cheaper models. Set the model in the agent's YAML frontmatter:
 
-```bash
-# deepseek-v4-flash is the default sub-agent model — fast and cheap
-pi --model deepseek/deepseek-v4-flash -p "Create a script that..." -nc -ns -ne
-
-# Upgrade only if the output quality is consistently poor
-pi --model deepseek/deepseek-v4-pro -p "Complex refactoring..." -nc -ns -ne
+```markdown
+---
+name: my-agent
+model: deepseek/deepseek-v4-flash
+tools: read, write, edit, bash
+---
 ```
 
 Reserve expensive models (claude-sonnet, gpt-4) for complex reasoning, architecture decisions, and code review.
-
-#### Full lifecycle (with git polling)
-
-```bash
-# 1. Kill old sub-agents
-pkill -f "pi.*keyword" 2>/dev/null; sleep 1
-
-# 2. Ensure clean state
-cd ~/project && git stash  # save any uncommitted work
-
-# 3. Launch sub-agent
-pi --model deepseek/deepseek-v4-flash --no-session -nc -ns -ne \
-  -p "Create a feature. Read existing code first. Use read/write/edit/bash." \
-  2>&1 | tee /tmp/pi-task.log &
-SUBPID=$!
-
-# 4. Poll every 30s
-sleep 30 && git status --short && git diff --stat
-sleep 30 && git status --short
-# ... repeat until sub-agent finishes or commits
-
-# 5. Check if it committed
-if git log --oneline -1 | grep -q "refactor\|feat\|fix"; then
-  echo "Sub-agent committed — run tests now"
-  make test
-fi
-
-# 6. If stuck, kill and review manually
-kill $SUBPID 2>/dev/null
-git diff | head -100
-# Fix issues, then commit yourself
-```
 
 ### git worktree — isolated workspaces for sub-agents
 
@@ -382,13 +291,7 @@ git worktree add ../approach-b main
 - Clean teardown: `git worktree remove` — gone, no lingering processes
 - Sub-agents can't step on each other's toes — separate working directories
 
-**Important**: Spawning sub-agents mid-session for context gathering is a sign you didn't plan ahead. Mario: *"If you need to gather context, do that first in its own session. Create an artifact that you can later use in a fresh session to give your agent all the context it needs without polluting its context window with tool outputs. That artifact can be useful for the next feature too."*
-
-The artifact pattern:
-1. Session A — explore, gather context, produce ARTIFACT.md
-2. Session B — read ARTIFACT.md, do the actual work
-
-The artifact persists across sessions and features.
+**Important**: Spawning sub-agents mid-session for context gathering is a sign you didn't plan ahead. Gather context first in its own session, produce an artifact, then feed that to a fresh session. The artifact persists across sessions and features.
 
 ### Makefile — the missing orchestrator
 
@@ -425,8 +328,9 @@ clean-subs:
 - Works perfectly with git: commit the Makefile, ignore generated results (`subs/results/`, `subs/data/`)
 - Combine with tmux for background monitoring:
   ```bash
-  tmux new-session -d -s sub-review "make subs/results/review-auth.md"
-  watch -n 5 "tmux capture-pane -t sub-review -p | tail -20"
+  tmux new-window -t keeper -n sub-review "make subs/results/review-auth.md 2>&1; sleep 30"
+  # Monitor:
+  tmux capture-pane -t keeper:sub-review -p | tail -20
   ```
 
 **Task file → result file convention:**
@@ -461,9 +365,11 @@ Start with `deepseek-v4-flash` for all sub-agents. Only upgrade if the output is
 
 ### One-shot vs Makefile — when to use each
 
+> **Note:** For one-shot tasks, prefer the `subagent` tool. The raw `pi -p` approach below is for scenarios without the extension.
+
 | Situation | Use |
 |-----------|-----|
-| Ad-hoc question, one-time | `pi -p "..." --model deepseek/deepseek-v4-flash $(SUB_FLAGS)` |
+| Ad-hoc question, one-time | `subagent` tool or `pi -p "..." --model deepseek/deepseek-v4-flash $(SUB_FLAGS)` |
 | Reusable task, may rerun | Put in Makefile with task file |
 | Task with data dependencies | Makefile (tracks what changed) |
 | Pipeline of 2+ sub-agent tasks | Makefile chain: `task2: task1 task2_data` |
@@ -486,23 +392,20 @@ Automate what's mechanical (extracting data, counting stats, re-running stale ta
 You don't need a custom TypeScript orchestrator with a "steering agent" role. **The main pi session (you + the model) is the supervisor.** You monitor sub-agents via tmux, review their output, and decide: continue, redirect, or kill.
 
 ```bash
-# Launch sub-agent in background tmux
-tmux new-session -d -s sub-css "cd ~/project && make task-css"
+# Launch sub-agent in keeper session (keeper must already exist — see "Real-time monitoring")
+tmux new-window -t keeper -n sub-css "cd ~/project && make task-css 2>&1; sleep 60"
 
 # Monitor — see last 30 lines of output
-tmux capture-pane -t sub-css -p | tail -30
-
-# Continuous watch (updates every 5s)
-watch -n 5 "tmux capture-pane -t sub-css -p | tail -20"
+tmux capture-pane -t keeper:sub-css -p | tail -30
 
 # Intervene — send a steering message while sub-agent is running
-tmux send-keys -t sub-css "Stop this approach and try using CSS Grid instead" Enter
+tmux send-keys -t keeper:sub-css "Stop this approach and try using CSS Grid instead" Enter
 
 # Kill if it goes off track
-tmux kill-session -t sub-css
+tmux kill-window -t keeper:sub-css
 
-# Check if still running
-tmux has-session -t sub-css 2>/dev/null && echo "Running" || echo "Finished"
+# Check which sub-agents are alive
+tmux list-windows -t keeper
 
 # Review result (sub-agent writes to a file)
 cat subs/results/task-css.md
@@ -645,7 +548,8 @@ Or use a prompt template (`/review`) that spawns a sub-agent.
 
 | Need | Pi Way | Not |
 |------|--------|-----|
-| Sub-agent | `pi -p` + `--system-prompt` + `--tools`, via bash or tmux | Built-in sub-agent tool |
+| Sub-agent | `subagent` tool + agent `.md` files (`@mjakl/pi-subagent`) | — |
+| Sub-agent (raw) | `pi -p` + `--system-prompt` + `--tools` via bash/tmux | — |
 | Sub-agent isolation | `git worktree` — separate directory per agent | Virtual sub-agent sandboxes |
 | Planning | `PLAN.md` file | Built-in plan mode |
 | Background process | `tmux` | Built-in background bash |
