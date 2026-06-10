@@ -13,21 +13,9 @@ The pi philosophy as a skill + system prompt injector. **Less is more, Unix-way.
 pi install git:github.com/e4779/pi-way-skill.git
 ```
 
-## Enable system prompt injection
+## Auto-injection
 
-After install, symlink or copy APPEND_SYSTEM.md to your pi config:
-
-```bash
-# Find where pi-way-skill is installed
-PKG=$(pi list | grep pi-way-skill | awk '{print $NF}')
-# Symlink to global config
-ln -sf "$PKG/APPEND_SYSTEM.md" ~/.pi/agent/APPEND_SYSTEM.md
-```
-
-Or copy to a specific project:
-```bash
-cp "$PKG/APPEND_SYSTEM.md" .pi/APPEND_SYSTEM.md
-```
+`postinstall` automatically symlinks `APPEND_SYSTEM.md` → `~/.pi/agent/`. No manual steps needed. Pi-way principles land in every session's system prompt — works alongside pi-qwen and other extensions.
 
 ## Update
 
