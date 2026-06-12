@@ -1,14 +1,15 @@
 {
   "name": "pi-way-skill",
-  "version": "2.0.1",
-  "description": "The pi philosophy — less is more, Unix-way. Sub-agents via Agent tool, Makefile orchestration, file-based planning. Auto-injects pi-way principles into system prompt.",
+  "version": "3.0.0",
+  "description": "The pi philosophy — less is more, Unix-way. Sub-agents via Agent tool, Makefile orchestration, file-based planning. Injects pi-way principles into system prompt via before_agent_start hook.",
   "keywords": ["pi-package", "pi-way", "skills", "sub-agents", "workflow"],
   "author": "e4779",
   "license": "ISC",
   "scripts": {
-    "postinstall": "ln -sf \"$PWD/APPEND_SYSTEM.md\" \"$HOME/.pi/agent/APPEND_SYSTEM.md\" 2>/dev/null; echo 'pi-way: APPEND_SYSTEM.md → ~/.pi/agent/' || true"
+    "postinstall": "rm -f \"$HOME/.pi/agent/APPEND_SYSTEM.md\" 2>/dev/null; echo 'pi-way: principles injected via extension (before_agent_start hook)' || true"
   },
   "pi": {
-    "skills": ["./skills"]
+    "skills": ["./skills"],
+    "extensions": ["./extensions/pi-way.ts"]
   }
 }
