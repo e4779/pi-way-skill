@@ -6,7 +6,7 @@
   "author": "e4779",
   "license": "ISC",
   "scripts": {
-    "postinstall": "rm -f \"$HOME/.pi/agent/APPEND_SYSTEM.md\" 2>/dev/null; echo 'pi-way: principles injected via extension (before_agent_start hook)' || true"
+    "postinstall": "target=$(readlink \"$HOME/.pi/agent/APPEND_SYSTEM.md\" 2>/dev/null); if [ -n \"$target\" ] && echo \"$target\" | grep -q pi-way-skill; then rm -f \"$HOME/.pi/agent/APPEND_SYSTEM.md\"; echo 'pi-way: cleaned up old APPEND_SYSTEM.md symlink from v2'; fi; echo 'pi-way: principles injected via extension (before_agent_start hook)' || true"
   },
   "pi": {
     "skills": ["./skills"],
